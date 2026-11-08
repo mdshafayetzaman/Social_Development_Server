@@ -11,7 +11,20 @@ const port = 5002
 app.use(cors())
 app.use(express.json())
 
+const client = new MongoClient(process.env.MONGODB_URL)
 
+async function connectToMongoDB() {
+  try {
+    await client.connect()
+
+
+    console.log('You successfully connected to MongoDB!')
+    console.log('Database connected: Social_Development')
+  } catch (error) {
+    console.error('MongoDB connection failed:', error)
+    process.exit(1)
+  }
+}
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
