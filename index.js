@@ -17,7 +17,6 @@ async function connectToMongoDB() {
   try {
     await client.connect()
 
-
     console.log('You successfully connected to MongoDB!')
     console.log('Database connected: Social_Development')
   } catch (error) {
@@ -36,7 +35,7 @@ app.get('/test', (req, res) => {
 
 async function startServer() {
   await connectToMongoDB()
-
+  const db = MongoClient.db('Social_Development1')
   app.listen(port, () => {
     console.log(`Server running on port ${port}`)
   })
