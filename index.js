@@ -22,203 +22,317 @@ let eventCollection
 
 const defaultEvents = [
   {
-    defaultId: 'kindred-default-001',
+    defaultId: 'kindred-default-013',
     title: 'Community Tree Plantation',
     description:
-      'Join our community tree plantation campaign and help create a greener and healthier environment for everyone.',
-    type: 'Environment',
-    location: 'Savar, Dhaka',
-    date: '2027-01-15',
+      'Join our community tree plantation campaign to create a greener and healthier environment.',
+    type: 'Plantation',
+    date: '2026-11-20',
+    location: 'Dhaka, Bangladesh',
     imageUrl:
-      'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1000',
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Kindred Community',
     createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
+    maxParticipants: 100,
   },
   {
-    defaultId: 'kindred-default-002',
-    title: 'Free Blood Donation Camp',
+    defaultId: 'kindred-default-014',
+    title: 'Free Education Support',
     description:
-      'Become a lifesaver by participating in our blood donation campaign. Every drop of blood can save a life.',
-    type: 'Health',
-    location: 'Dhanmondi, Dhaka',
-    date: '2027-01-20',
+      'Help underprivileged children receive quality education and learning resources.',
+    type: 'Education',
+    date: '2026-11-22',
+    location: 'Mirpur, Dhaka',
     imageUrl:
-      'https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=1000',
-    createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
+      'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Education Foundation',
+    createdBy: 'education foundation',
+    maxParticipants: 50,
   },
   {
-    defaultId: 'kindred-default-003',
+    defaultId: 'kindred-default-015',
+    title: 'Community Blood Donation',
+    description:
+      'Donate blood and help save lives through our community blood donation program.',
+    type: 'Healthcare',
+    date: '2026-11-24',
+    location: 'Dhanmondi, Dhaka',
+    imageUrl:
+      'https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Health Care Team',
+    createdBy: 'health care team',
+    maxParticipants: 80,
+  },
+  {
+    defaultId: 'kindred-default-016',
+    title: 'Food Distribution Program',
+    description:
+      'Distribute nutritious food among families who need community support.',
+    type: 'Donation',
+    date: '2026-11-26',
+    location: 'Uttara, Dhaka',
+    imageUrl:
+      'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Kindred Volunteers',
+    createdBy: 'kindred volunteers',
+    maxParticipants: 60,
+  },
+  {
+    defaultId: 'kindred-default-017',
+    title: 'Clean City Campaign',
+    description:
+      'Work together to clean public spaces and promote a cleaner city.',
+    type: 'Cleanup',
+    date: '2026-11-28',
+    location: 'Gulshan, Dhaka',
+    imageUrl:
+      'https://images.unsplash.com/photo-1532996122724-e3c354a0b15a?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Green Bangladesh',
+    createdBy: 'green bangladesh',
+    maxParticipants: 70,
+  },
+  {
+    defaultId: 'kindred-default-018',
+    title: 'Free Health Awareness Camp',
+    description:
+      'Participate in a free health awareness campaign and learn about healthy living.',
+    type: 'Healthcare',
+    date: '2026-11-30',
+    location: 'Mohammadpur, Dhaka',
+    imageUrl:
+      'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Health Awareness Team',
+    createdBy: 'health awareness team',
+    maxParticipants: 100,
+  },
+  {
+    defaultId: 'kindred-default-019',
     title: 'Winter Clothes Distribution',
     description:
-      'Join hands with volunteers to distribute warm clothes among underprivileged families.',
-    type: 'Charity',
-    location: 'Mirpur, Dhaka',
-    date: '2027-01-25',
-    imageUrl:
-      'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1000',
-    createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
-  },
-  {
-    defaultId: 'kindred-default-004',
-    title: 'Free Coding Workshop',
-    description:
-      'Learn web development, programming fundamentals and modern technology with experienced mentors.',
-    type: 'Education',
-    location: 'Uttara, Dhaka',
-    date: '2027-02-05',
-    imageUrl:
-      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1000',
-    createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
-  },
-  {
-    defaultId: 'kindred-default-005',
-    title: 'Community Food Distribution',
-    description:
-      'Help us distribute nutritious food to families who need support in our local community.',
-    type: 'Charity',
-    location: 'Mohammadpur, Dhaka',
-    date: '2027-02-12',
-    imageUrl:
-      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=1000',
-    createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
-  },
-  {
-    defaultId: 'kindred-default-006',
-    title: 'Neighborhood Clean-up Campaign',
-    description:
-      'Work together with local volunteers to clean public spaces and make our neighborhood beautiful.',
-    type: 'Environment',
+      'Support people in need by distributing warm clothes during the winter season.',
+    type: 'Donation',
+    date: '2026-12-02',
     location: 'Savar, Dhaka',
-    date: '2027-02-20',
     imageUrl:
-      'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=1000',
-    createdBy: 'kindred community',
-    joined: [],
-    source: 'default',
+      'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Kindred Volunteers',
+    createdBy: 'kindred volunteers',
+    maxParticipants: 50,
+  },
+  {
+    defaultId: 'kindred-default-020',
+    title: 'Youth Skill Development Workshop',
+    description:
+      'Help young people develop useful skills through an interactive community workshop.',
+    type: 'Education',
+    date: '2026-12-05',
+    location: 'Banani, Dhaka',
+    imageUrl:
+      'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=1200&auto=format&fit=crop&q=85',
+    organizer: 'Youth Development Team',
+    createdBy: 'youth development team',
+    maxParticipants: 80,
   },
 ]
 
-async function seedDefaultEvents() {
-  try {
-    for (const event of defaultEvents) {
-      const { defaultId, ...eventData } = event
+function isValidDate(dateString) {
+  if (typeof dateString !== 'string') return false
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false
 
-      await eventCollection.updateOne(
-        { defaultId },
-        {
-          $setOnInsert: {
-            ...eventData,
-            defaultId,
-            createdAt: new Date(),
-          },
-        },
-        { upsert: true },
-      )
-    }
+  const [year, month, day] = dateString.split('-').map(Number)
+  const parsedDate = new Date(Date.UTC(year, month - 1, day))
 
-    console.log('Default events added successfully')
-  } catch (error) {
-    console.error('Default events seeding error:', error)
-    throw error
+  return (
+    parsedDate.getUTCFullYear() === year &&
+    parsedDate.getUTCMonth() === month - 1 &&
+    parsedDate.getUTCDate() === day
+  )
+}
+
+function getTodayDate() {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function formatEvent(event) {
+  return {
+    ...event,
+    _id: event._id.toString(),
+    category: event.category || event.type || '',
+    type: event.type || event.category || '',
+    image: event.image || event.imageUrl || '',
+    imageUrl: event.imageUrl || event.image || '',
+    organizer: event.organizer || event.createdBy || 'Community Member',
+    maxParticipants: event.maxParticipants || 50,
+    joined: event.joined || [],
+    source: event.source || (event.defaultId ? 'default' : 'user'),
   }
 }
 
+async function seedDefaultEvents() {
+  for (const event of defaultEvents) {
+    const { defaultId, ...eventData } = event
+
+    await eventCollection.updateOne(
+      { defaultId },
+      {
+        $setOnInsert: {
+          ...eventData,
+          category: eventData.type,
+          image: eventData.imageUrl,
+          defaultId,
+          source: 'default',
+          joined: [],
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true },
+    )
+  }
+
+  console.log('Default events seeded successfully')
+}
+
 app.get('/', (req, res) => {
-  res.send({
+  res.status(200).json({
     success: true,
-    message: 'Kindred server is running',
+    message: 'Kindred Events API is running',
   })
 })
 
 app.post('/create-event', async (req, res) => {
   try {
-    const { title, description, type, location, date, imageUrl, createdBy } =
-      req.body
+    const {
+      title,
+      description,
+      type,
+      date,
+      location,
+      imageUrl,
+      createdBy,
+      organizer,
+      maxParticipants,
+    } = req.body
 
     if (
       typeof title !== 'string' ||
       typeof description !== 'string' ||
       typeof type !== 'string' ||
-      typeof location !== 'string' ||
       typeof date !== 'string' ||
+      typeof location !== 'string' ||
       typeof imageUrl !== 'string' ||
       typeof createdBy !== 'string'
     ) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'All fields are required',
+        message: 'Please provide all required event information.',
       })
     }
 
     const cleanTitle = title.trim()
     const cleanDescription = description.trim()
     const cleanType = type.trim()
+    const cleanDate = date.trim()
     const cleanLocation = location.trim()
     const cleanImageUrl = imageUrl.trim()
-    const cleanCreatedBy = createdBy.trim().toLowerCase()
+    const cleanEmail = createdBy.trim().toLowerCase()
+
+    const cleanOrganizer =
+      typeof organizer === 'string' && organizer.trim()
+        ? organizer.trim()
+        : cleanEmail
 
     if (
       !cleanTitle ||
       !cleanDescription ||
       !cleanType ||
+      !cleanDate ||
       !cleanLocation ||
-      !date.trim() ||
       !cleanImageUrl ||
-      !cleanCreatedBy
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)
     ) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'All fields are required',
+        message: 'Please fill in all required fields correctly.',
       })
     }
 
     if (
       cleanTitle.length > 100 ||
       cleanDescription.length > 1500 ||
-      cleanLocation.length > 150
+      cleanType.length > 100 ||
+      cleanLocation.length > 150 ||
+      cleanImageUrl.length > 2000 ||
+      cleanOrganizer.length > 100
     ) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Some fields exceed the allowed length',
+        message: 'Event information exceeds the allowed limit.',
       })
     }
 
-    const eventDate = new Date(date)
-
-    if (Number.isNaN(eventDate.getTime())) {
-      return res.status(400).send({
+    if (!isValidDate(cleanDate)) {
+      return res.status(400).json({
         success: false,
-        message: 'Invalid event date',
+        message: 'Invalid event date.',
+      })
+    }
+
+    if (cleanDate <= getTodayDate()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please select a future event date.',
+      })
+    }
+
+    try {
+      const parsedUrl = new URL(cleanImageUrl)
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Invalid URL')
+      }
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid image URL.',
+      })
+    }
+
+    const participants = Number(maxParticipants) || 50
+
+    if (!Number.isInteger(participants) || participants < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid maximum participants.',
       })
     }
 
     const newEvent = {
       title: cleanTitle,
       description: cleanDescription,
+      category: cleanType,
       type: cleanType,
+      date: cleanDate,
       location: cleanLocation,
-      date: date.trim(),
+      image: cleanImageUrl,
       imageUrl: cleanImageUrl,
-      createdBy: cleanCreatedBy,
-      joined: [],
+      organizer: cleanOrganizer,
+      createdBy: cleanEmail,
+      maxParticipants: participants,
       source: 'user',
+      joined: [],
       createdAt: new Date(),
     }
 
     const result = await eventCollection.insertOne(newEvent)
 
-    res.status(201).send({
+    res.status(201).json({
       success: true,
-      message: 'Event created successfully',
+      message: 'Your event has been published successfully!',
       event: {
         ...newEvent,
         _id: result.insertedId.toString(),
@@ -227,9 +341,9 @@ app.post('/create-event', async (req, res) => {
   } catch (error) {
     console.error('Create event error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to create event',
+      message: 'Failed to create event.',
     })
   }
 })
@@ -237,26 +351,43 @@ app.post('/create-event', async (req, res) => {
 app.get('/events', async (req, res) => {
   try {
     const events = await eventCollection
-      .find()
+      .find({})
       .sort({ date: 1, createdAt: -1 })
       .toArray()
 
-    res.send({
+    res.status(200).json({
       success: true,
       totalEvents: events.length,
-      events: events.map((event) => ({
-        ...event,
-        _id: event._id.toString(),
-        joined: event.joined || [],
-        source: event.source || 'user',
-      })),
+      events: events.map(formatEvent),
     })
   } catch (error) {
-    console.error('Get events error:', error)
+    console.error('Get all events error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to get events',
+      message: 'Failed to fetch events.',
+    })
+  }
+})
+
+app.get('/events/user', async (req, res) => {
+  try {
+    const events = await eventCollection
+      .find({ source: 'user' })
+      .sort({ date: 1, createdAt: -1 })
+      .toArray()
+
+    res.status(200).json({
+      success: true,
+      totalEvents: events.length,
+      events: events.map(formatEvent),
+    })
+  } catch (error) {
+    console.error('Get user events error:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch user events.',
     })
   }
 })
@@ -266,9 +397,9 @@ app.get('/events/:id', async (req, res) => {
     const { id } = req.params
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid event ID',
+        message: 'Invalid event ID.',
       })
     }
 
@@ -277,27 +408,22 @@ app.get('/events/:id', async (req, res) => {
     })
 
     if (!event) {
-      return res.status(404).send({
+      return res.status(404).json({
         success: false,
-        message: 'Event not found',
+        message: 'Event not found.',
       })
     }
 
-    res.send({
+    res.status(200).json({
       success: true,
-      event: {
-        ...event,
-        _id: event._id.toString(),
-        joined: event.joined || [],
-        source: event.source || 'user',
-      },
+      event: formatEvent(event),
     })
   } catch (error) {
     console.error('Get single event error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to get event',
+      message: 'Failed to fetch event.',
     })
   }
 })
@@ -307,137 +433,126 @@ app.put('/update-event/:id', async (req, res) => {
     const { id } = req.params
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid event ID',
+        message: 'Invalid event ID.',
       })
     }
 
-    const { title, description, type, location, date, imageUrl } = req.body
+    const {
+      title,
+      description,
+      category,
+      type,
+      date,
+      location,
+      image,
+      imageUrl,
+      organizer,
+      createdBy,
+      maxParticipants,
+    } = req.body
 
-    const updateData = {}
+    const updatedData = {}
 
-    if (title !== undefined) {
-      if (typeof title !== 'string' || !title.trim()) {
-        return res.status(400).send({
-          success: false,
-          message: 'Valid event title is required',
-        })
-      }
+    if (title !== undefined) updatedData.title = title.trim()
+    if (description !== undefined) updatedData.description = description.trim()
 
-      if (title.trim().length > 100) {
-        return res.status(400).send({
-          success: false,
-          message: 'Event title is too long',
-        })
-      }
-
-      updateData.title = title.trim()
-    }
-
-    if (description !== undefined) {
-      if (
-        typeof description !== 'string' ||
-        !description.trim() ||
-        description.trim().length > 1500
-      ) {
-        return res.status(400).send({
-          success: false,
-          message: 'Valid event description is required',
-        })
-      }
-
-      updateData.description = description.trim()
-    }
-
-    if (type !== undefined) {
-      if (typeof type !== 'string' || !type.trim()) {
-        return res.status(400).send({
-          success: false,
-          message: 'Valid event category is required',
-        })
-      }
-
-      updateData.type = type.trim()
-    }
-
-    if (location !== undefined) {
-      if (
-        typeof location !== 'string' ||
-        !location.trim() ||
-        location.trim().length > 150
-      ) {
-        return res.status(400).send({
-          success: false,
-          message: 'Valid event location is required',
-        })
-      }
-
-      updateData.location = location.trim()
+    if (category !== undefined || type !== undefined) {
+      updatedData.category = (category || type).trim()
+      updatedData.type = updatedData.category
     }
 
     if (date !== undefined) {
-      if (typeof date !== 'string' || !date.trim()) {
-        return res.status(400).send({
+      const cleanDate = date.trim()
+
+      if (!isValidDate(cleanDate)) {
+        return res.status(400).json({
           success: false,
-          message: 'Valid event date is required',
+          message: 'Invalid event date.',
         })
       }
 
-      const eventDate = new Date(date)
-
-      if (Number.isNaN(eventDate.getTime())) {
-        return res.status(400).send({
-          success: false,
-          message: 'Invalid event date',
-        })
-      }
-
-      updateData.date = date.trim()
+      updatedData.date = cleanDate
     }
 
-    if (imageUrl !== undefined) {
-      if (typeof imageUrl !== 'string' || !imageUrl.trim()) {
-        return res.status(400).send({
+    if (location !== undefined) updatedData.location = location.trim()
+
+    if (image !== undefined || imageUrl !== undefined) {
+      updatedData.image = (image || imageUrl).trim()
+      updatedData.imageUrl = updatedData.image
+    }
+
+    if (organizer !== undefined || createdBy !== undefined) {
+      updatedData.organizer = (organizer || createdBy).trim()
+      updatedData.createdBy = updatedData.organizer.toLowerCase()
+    }
+
+    if (maxParticipants !== undefined) {
+      const participants = Number(maxParticipants)
+
+      if (!Number.isInteger(participants) || participants < 1) {
+        return res.status(400).json({
           success: false,
-          message: 'Valid event image URL is required',
+          message: 'Invalid maxParticipants.',
         })
       }
 
-      updateData.imageUrl = imageUrl.trim()
+      updatedData.maxParticipants = participants
     }
 
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).send({
+    const limits = {
+      title: 100,
+      description: 1500,
+      category: 100,
+      location: 150,
+      image: 2000,
+      organizer: 100,
+    }
+
+    for (const [field, maxLength] of Object.entries(limits)) {
+      if (
+        updatedData[field] !== undefined &&
+        (!updatedData[field] || updatedData[field].length > maxLength)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid ${field}.`,
+        })
+      }
+    }
+
+    if (!Object.keys(updatedData).length) {
+      return res.status(400).json({
         success: false,
-        message: 'No update data provided',
+        message: 'No update data provided.',
       })
     }
 
-    updateData.updatedAt = new Date()
+    updatedData.updatedAt = new Date()
 
     const result = await eventCollection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData },
+      { $set: updatedData },
     )
 
-    if (result.matchedCount === 0) {
-      return res.status(404).send({
+    if (!result.matchedCount) {
+      return res.status(404).json({
         success: false,
-        message: 'Event not found',
+        message: 'Event not found.',
       })
     }
 
-    res.send({
+    res.status(200).json({
       success: true,
-      message: 'Event updated successfully',
+      message: 'Event updated successfully.',
     })
   } catch (error) {
     console.error('Update event error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to update event',
+      message: 'Failed to update event.',
     })
   }
 })
@@ -448,9 +563,9 @@ app.patch('/join-event/:id', async (req, res) => {
     const { email } = req.body
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid event ID',
+        message: 'Invalid event ID.',
       })
     }
 
@@ -458,16 +573,25 @@ app.patch('/join-event/:id', async (req, res) => {
       typeof email !== 'string' ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
     ) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Please provide a valid email address',
+        message: 'Please provide a valid email address.',
       })
     }
 
     const cleanEmail = email.trim().toLowerCase()
 
     const result = await eventCollection.updateOne(
-      { _id: new ObjectId(id) },
+      {
+        _id: new ObjectId(id),
+        joined: { $ne: cleanEmail },
+        $expr: {
+          $lt: [
+            { $size: { $ifNull: ['$joined', []] } },
+            { $ifNull: ['$maxParticipants', 50] },
+          ],
+        },
+      },
       {
         $addToSet: {
           joined: cleanEmail,
@@ -475,10 +599,27 @@ app.patch('/join-event/:id', async (req, res) => {
       },
     )
 
-    if (result.matchedCount === 0) {
-      return res.status(404).send({
+    if (!result.matchedCount) {
+      const event = await eventCollection.findOne({
+        _id: new ObjectId(id),
+      })
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found.',
+        })
+      }
+
+      const joined = event.joined || []
+
+      return res.status(409).json({
         success: false,
-        message: 'Event not found',
+        message: joined.includes(cleanEmail)
+          ? 'You have already joined this event.'
+          : 'Event is full.',
+        joined,
+        totalJoined: joined.length,
       })
     }
 
@@ -488,27 +629,19 @@ app.patch('/join-event/:id', async (req, res) => {
 
     const joined = updatedEvent?.joined || []
 
-    if (result.modifiedCount === 0) {
-      return res.status(409).send({
-        success: false,
-        message: 'You have already joined this event',
-        joined,
-        totalJoined: joined.length,
-      })
-    }
-
-    res.send({
+    res.status(200).json({
       success: true,
-      message: 'Successfully joined the event',
+      message: 'Successfully joined the event.',
       joined,
       totalJoined: joined.length,
+      maxParticipants: updatedEvent.maxParticipants || 50,
     })
   } catch (error) {
     console.error('Join event error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to join event',
+      message: 'Failed to join event.',
     })
   }
 })
@@ -518,9 +651,9 @@ app.delete('/delete-event/:id', async (req, res) => {
     const { id } = req.params
 
     if (!ObjectId.isValid(id)) {
-      return res.status(400).send({
+      return res.status(400).json({
         success: false,
-        message: 'Invalid event ID',
+        message: 'Invalid event ID.',
       })
     }
 
@@ -528,40 +661,52 @@ app.delete('/delete-event/:id', async (req, res) => {
       _id: new ObjectId(id),
     })
 
-    if (result.deletedCount === 0) {
-      return res.status(404).send({
+    if (!result.deletedCount) {
+      return res.status(404).json({
         success: false,
-        message: 'Event not found',
+        message: 'Event not found.',
       })
     }
 
-    res.send({
+    res.status(200).json({
       success: true,
-      message: 'Event deleted successfully',
+      message: 'Event deleted successfully.',
     })
   } catch (error) {
     console.error('Delete event error:', error)
 
-    res.status(500).send({
+    res.status(500).json({
       success: false,
-      message: 'Failed to delete event',
+      message: 'Failed to delete event.',
     })
   }
 })
 
-async function connectDB() {
+async function startServer() {
   try {
     await client.connect()
 
-    const db = client.db('Social_Development1')
-    eventCollection = db.collection('events')
+    const database = client.db('Social_Development1')
+    eventCollection = database.collection('events')
 
     await seedDefaultEvents()
 
-    console.log('MongoDB connected successfully')
+    await eventCollection.updateMany(
+      {
+        defaultId: { $exists: false },
+        source: { $exists: false },
+      },
+      {
+        $set: {
+          source: 'user',
+        },
+      },
+    )
+
+    console.log('Existing user events updated successfully')
 
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`)
+      console.log(`Server running at http://localhost:${PORT}`)
     })
   } catch (error) {
     console.error('MongoDB connection failed:', error)
@@ -569,4 +714,4 @@ async function connectDB() {
   }
 }
 
-connectDB()
+startServer()
