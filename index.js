@@ -20,6 +20,118 @@ const client = new MongoClient(process.env.MONGODB_URL)
 
 let eventCollection
 
+const defaultEvents = [
+  {
+    defaultId: 'kindred-default-001',
+    title: 'Community Tree Plantation',
+    description:
+      'Join our community tree plantation campaign and help create a greener and healthier environment for everyone.',
+    type: 'Environment',
+    location: 'Savar, Dhaka',
+    date: '2027-01-15',
+    imageUrl:
+      'https://images.unsplash.com/photo-1448375240586-882707db888b?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+  {
+    defaultId: 'kindred-default-002',
+    title: 'Free Blood Donation Camp',
+    description:
+      'Become a lifesaver by participating in our blood donation campaign. Every drop of blood can save a life.',
+    type: 'Health',
+    location: 'Dhanmondi, Dhaka',
+    date: '2027-01-20',
+    imageUrl:
+      'https://images.unsplash.com/photo-1615461066841-6116e61058f4?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+  {
+    defaultId: 'kindred-default-003',
+    title: 'Winter Clothes Distribution',
+    description:
+      'Join hands with volunteers to distribute warm clothes among underprivileged families.',
+    type: 'Charity',
+    location: 'Mirpur, Dhaka',
+    date: '2027-01-25',
+    imageUrl:
+      'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+  {
+    defaultId: 'kindred-default-004',
+    title: 'Free Coding Workshop',
+    description:
+      'Learn web development, programming fundamentals and modern technology with experienced mentors.',
+    type: 'Education',
+    location: 'Uttara, Dhaka',
+    date: '2027-02-05',
+    imageUrl:
+      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+  {
+    defaultId: 'kindred-default-005',
+    title: 'Community Food Distribution',
+    description:
+      'Help us distribute nutritious food to families who need support in our local community.',
+    type: 'Charity',
+    location: 'Mohammadpur, Dhaka',
+    date: '2027-02-12',
+    imageUrl:
+      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+  {
+    defaultId: 'kindred-default-006',
+    title: 'Neighborhood Clean-up Campaign',
+    description:
+      'Work together with local volunteers to clean public spaces and make our neighborhood beautiful.',
+    type: 'Environment',
+    location: 'Savar, Dhaka',
+    date: '2027-02-20',
+    imageUrl:
+      'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?w=1000',
+    createdBy: 'kindred community',
+    joined: [],
+    source: 'default',
+  },
+]
+
+async function seedDefaultEvents() {
+  try {
+    for (const event of defaultEvents) {
+      const { defaultId, ...eventData } = event
+
+      await eventCollection.updateOne(
+        { defaultId },
+        {
+          $setOnInsert: {
+            ...eventData,
+            defaultId,
+            createdAt: new Date(),
+          },
+        },
+        { upsert: true },
+      )
+    }
+
+    console.log('Default events added successfully')
+  } catch (error) {
+    console.error('Default events seeding error:', error)
+    throw error
+  }
+}
+
 app.get('/', (req, res) => {
   res.send({
     success: true,
@@ -98,6 +210,7 @@ app.post('/create-event', async (req, res) => {
       imageUrl: cleanImageUrl,
       createdBy: cleanCreatedBy,
       joined: [],
+      source: 'user',
       createdAt: new Date(),
     }
 
@@ -108,7 +221,7 @@ app.post('/create-event', async (req, res) => {
       message: 'Event created successfully',
       event: {
         ...newEvent,
-        _id: result.insertedId,
+        _id: result.insertedId.toString(),
       },
     })
   } catch (error) {
@@ -125,12 +238,18 @@ app.get('/events', async (req, res) => {
   try {
     const events = await eventCollection
       .find()
-      .sort({ createdAt: -1 })
+      .sort({ date: 1, createdAt: -1 })
       .toArray()
 
     res.send({
       success: true,
-      events,
+      totalEvents: events.length,
+      events: events.map((event) => ({
+        ...event,
+        _id: event._id.toString(),
+        joined: event.joined || [],
+        source: event.source || 'user',
+      })),
     })
   } catch (error) {
     console.error('Get events error:', error)
@@ -166,7 +285,12 @@ app.get('/events/:id', async (req, res) => {
 
     res.send({
       success: true,
-      event,
+      event: {
+        ...event,
+        _id: event._id.toString(),
+        joined: event.joined || [],
+        source: event.source || 'user',
+      },
     })
   } catch (error) {
     console.error('Get single event error:', error)
@@ -330,18 +454,23 @@ app.patch('/join-event/:id', async (req, res) => {
       })
     }
 
-    if (typeof email !== 'string' || !email.trim()) {
+    if (
+      typeof email !== 'string' ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
       return res.status(400).send({
         success: false,
-        message: 'User email is required',
+        message: 'Please provide a valid email address',
       })
     }
+
+    const cleanEmail = email.trim().toLowerCase()
 
     const result = await eventCollection.updateOne(
       { _id: new ObjectId(id) },
       {
         $addToSet: {
-          joined: email.trim().toLowerCase(),
+          joined: cleanEmail,
         },
       },
     )
@@ -353,9 +482,26 @@ app.patch('/join-event/:id', async (req, res) => {
       })
     }
 
+    const updatedEvent = await eventCollection.findOne({
+      _id: new ObjectId(id),
+    })
+
+    const joined = updatedEvent?.joined || []
+
+    if (result.modifiedCount === 0) {
+      return res.status(409).send({
+        success: false,
+        message: 'You have already joined this event',
+        joined,
+        totalJoined: joined.length,
+      })
+    }
+
     res.send({
       success: true,
       message: 'Successfully joined the event',
+      joined,
+      totalJoined: joined.length,
     })
   } catch (error) {
     console.error('Join event error:', error)
@@ -409,6 +555,8 @@ async function connectDB() {
 
     const db = client.db('Social_Development1')
     eventCollection = db.collection('events')
+
+    await seedDefaultEvents()
 
     console.log('MongoDB connected successfully')
 
