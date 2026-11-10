@@ -392,6 +392,42 @@ app.get('/events/user', async (req, res) => {
   }
 })
 
+app.get('/joined-events', async (req, res) => {
+  try {
+    const email = req.query.email
+
+    if (
+      typeof email !== 'string' ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email address.',
+      })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+
+    const events = await eventCollection
+      .find({ joined: cleanEmail })
+      .sort({ date: 1 })
+      .toArray()
+
+    res.status(200).json({
+      success: true,
+      totalEvents: events.length,
+      events: events.map(formatEvent),
+    })
+  } catch (error) {
+    console.error('Get joined events error:', error)
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch joined events.',
+    })
+  }
+})
+
 app.get('/events/:id', async (req, res) => {
   try {
     const { id } = req.params
@@ -455,37 +491,98 @@ app.put('/update-event/:id', async (req, res) => {
 
     const updatedData = {}
 
-    if (title !== undefined) updatedData.title = title.trim()
-    if (description !== undefined) updatedData.description = description.trim()
+    if (title !== undefined) {
+      if (typeof title !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid title.',
+        })
+      }
+      updatedData.title = title.trim()
+    }
+
+    if (description !== undefined) {
+      if (typeof description !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid description.',
+        })
+      }
+      updatedData.description = description.trim()
+    }
 
     if (category !== undefined || type !== undefined) {
-      updatedData.category = (category || type).trim()
-      updatedData.type = updatedData.category
+      const cleanType = category ?? type
+
+      if (typeof cleanType !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid event category.',
+        })
+      }
+
+      updatedData.category = cleanType.trim()
+      updatedData.type = cleanType.trim()
     }
 
     if (date !== undefined) {
-      const cleanDate = date.trim()
-
-      if (!isValidDate(cleanDate)) {
+      if (typeof date !== 'string' || !isValidDate(date.trim())) {
         return res.status(400).json({
           success: false,
           message: 'Invalid event date.',
         })
       }
 
-      updatedData.date = cleanDate
+      updatedData.date = date.trim()
     }
 
-    if (location !== undefined) updatedData.location = location.trim()
+    if (location !== undefined) {
+      if (typeof location !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid location.',
+        })
+      }
+
+      updatedData.location = location.trim()
+    }
 
     if (image !== undefined || imageUrl !== undefined) {
-      updatedData.image = (image || imageUrl).trim()
-      updatedData.imageUrl = updatedData.image
+      const cleanImage = image ?? imageUrl
+
+      if (typeof cleanImage !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid image URL.',
+        })
+      }
+
+      try {
+        const parsedUrl = new URL(cleanImage.trim())
+
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          throw new Error('Invalid URL')
+        }
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid image URL.',
+        })
+      }
+
+      updatedData.image = cleanImage.trim()
+      updatedData.imageUrl = cleanImage.trim()
     }
 
-    if (organizer !== undefined || createdBy !== undefined) {
-      updatedData.organizer = (organizer || createdBy).trim()
-      updatedData.createdBy = updatedData.organizer.toLowerCase()
+    if (organizer !== undefined) {
+      if (typeof organizer !== 'string') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid organizer.',
+        })
+      }
+
+      updatedData.organizer = organizer.trim()
     }
 
     if (maxParticipants !== undefined) {
@@ -543,9 +640,14 @@ app.put('/update-event/:id', async (req, res) => {
       })
     }
 
+    const updatedEvent = await eventCollection.findOne({
+      _id: new ObjectId(id),
+    })
+
     res.status(200).json({
       success: true,
       message: 'Event updated successfully.',
+      event: formatEvent(updatedEvent),
     })
   } catch (error) {
     console.error('Update event error:', error)
