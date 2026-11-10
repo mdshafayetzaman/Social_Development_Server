@@ -9,32 +9,26 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 5002
 
+const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000'
+const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL
+const MONGODB_URL = process.env.MONGODB_URL
+
+if (!MONGODB_URL || !BETTER_AUTH_URL) {
+  console.error('MONGODB_URL and BETTER_AUTH_URL are required.')
+  process.exit(1)
+}
+
 app.use(
   cors({
-    origin: [
-      process.env.CLIENT_URL || 'http://localhost:3000',
-      'http://127.0.0.1:3000',
-    ],
+    origin: [CLIENT_URL, 'http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
   }),
 )
 
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 
-if (
-  !process.env.MONGODB_URL ||
-  !process.env.BETTER_AUTH_SECRET ||
-  !process.env.BETTER_AUTH_URL
-) {
-  console.error('Required environment variables are missing from .env')
-  process.exit(1)
-}
-
-const client = new MongoClient(process.env.MONGODB_URL)
-
-const JWKS = createRemoteJWKSet(
-  new URL(`${process.env.BETTER_AUTH_URL}/api/auth/jwks`),
-)
+const client = new MongoClient(MONGODB_URL)
+const JWKS = createRemoteJWKSet(new URL('/api/auth/jwks', BETTER_AUTH_URL))
 
 let eventCollection
 
@@ -120,7 +114,7 @@ const defaultEvents = [
     imageUrl:
       'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=1200&auto=format&fit=crop&q=85',
     organizer: 'Health Awareness Team',
-    createdBy: 'health awareness team',
+    createdBy: 'Health Awareness Team',
     maxParticipants: 100,
   },
   {
@@ -153,87 +147,42 @@ const defaultEvents = [
   },
 ]
 
-async function verifyAuth(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('JWT missing:', req.method, req.originalUrl)
-
-      return res.status(401).json({
-        success: false,
-        message: 'Please login to continue.',
-      })
-    }
-
-    const token = authHeader.slice(7)
-
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: process.env.BETTER_AUTH_URL,
-      audience: process.env.BETTER_AUTH_URL,
-    })
-
-    if (!payload.sub || !payload.email) {
-      console.log('JWT payload invalid:', req.originalUrl)
-
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid JWT payload.',
-      })
-    }
-
-    req.user = {
-      id: payload.sub,
-      email: payload.email,
-      name: payload.name,
-    }
-
-    console.log('JWT verified successfully:', {
-      method: req.method,
-      route: req.originalUrl,
-      email: req.user.email,
-    })
-
-    next()
-  } catch (error) {
-    console.error('JWT verification failed:', error.message)
-
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid or expired JWT token.',
-    })
-  }
-}
-
-function isEventOwner(event, user) {
-  return (
-    event.source === 'user' &&
-    typeof event.createdBy === 'string' &&
-    event.createdBy.toLowerCase() === user.email.toLowerCase()
-  )
-}
-
-function isValidDate(dateString) {
-  if (typeof dateString !== 'string') return false
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false
-
-  const [year, month, day] = dateString.split('-').map(Number)
-  const parsedDate = new Date(Date.UTC(year, month - 1, day))
-
-  return (
-    parsedDate.getUTCFullYear() === year &&
-    parsedDate.getUTCMonth() === month - 1 &&
-    parsedDate.getUTCDate() === day
-  )
+function normalizeEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : ''
 }
 
 function getTodayDate() {
   const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, '0')
-  const day = String(today.getDate()).padStart(2, '0')
 
-  return `${year}-${month}-${day}`
+  return [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-')
+}
+
+function isValidDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
+
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  )
+}
+
+function isValidImageUrl(value) {
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol)
+  } catch {
+    return false
+  }
 }
 
 function formatEvent(event) {
@@ -248,8 +197,85 @@ function formatEvent(event) {
     maxParticipants: event.maxParticipants || 50,
     joined: event.joined || [],
     source: event.source || (event.defaultId ? 'default' : 'user'),
-    createdAt: event.createdAt || event._id.getTimestamp(),
   }
+}
+
+async function verifyAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization
+
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please login to continue.',
+      })
+    }
+
+    const token = authHeader.slice(7).trim()
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'JWT token is missing.',
+      })
+    }
+
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: BETTER_AUTH_URL,
+      audience: BETTER_AUTH_URL,
+    })
+
+    if (
+      typeof payload.sub !== 'string' ||
+      typeof payload.email !== 'string' ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid JWT payload.',
+      })
+    }
+
+    req.user = {
+      id: payload.sub,
+      email: normalizeEmail(payload.email),
+      name:
+        typeof payload.name === 'string' && payload.name.trim()
+          ? payload.name.trim()
+          : payload.email.trim(),
+    }
+
+    console.log('Authenticated user:', req.user.email)
+
+    next()
+  } catch (error) {
+    console.error('JWT verification failed:', error.message)
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired JWT token.',
+    })
+  }
+}
+
+function isEventOwner(event, user) {
+  if (!event || !user) return false
+
+  if (event.defaultId || event.source === 'default') {
+    return false
+  }
+
+  const eventEmail = normalizeEmail(event.createdBy)
+  const userEmail = normalizeEmail(user.email)
+
+  const emailMatches = Boolean(eventEmail) && eventEmail === userEmail
+
+  const idMatches =
+    Boolean(event.createdById) &&
+    Boolean(user.id) &&
+    String(event.createdById) === String(user.id)
+
+  return event.source === 'user' && (emailMatches || idMatches)
 }
 
 async function seedDefaultEvents() {
@@ -296,35 +322,13 @@ app.post('/create-event', verifyAuth, async (req, res) => {
       maxParticipants,
     } = req.body
 
-    const createdBy = req.user.email
-
-    if (
-      typeof title !== 'string' ||
-      typeof description !== 'string' ||
-      typeof type !== 'string' ||
-      typeof date !== 'string' ||
-      typeof location !== 'string' ||
-      typeof imageUrl !== 'string' ||
-      typeof createdBy !== 'string'
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide all required event information.',
-      })
-    }
-
-    const cleanTitle = title.trim()
-    const cleanDescription = description.trim()
-    const cleanType = type.trim()
-    const cleanDate = date.trim()
-    const cleanLocation = location.trim()
-    const cleanImageUrl = imageUrl.trim()
-    const cleanEmail = createdBy.trim().toLowerCase()
-
-    const cleanOrganizer =
-      typeof organizer === 'string' && organizer.trim()
-        ? organizer.trim()
-        : cleanEmail
+    const cleanTitle = typeof title === 'string' ? title.trim() : ''
+    const cleanDescription =
+      typeof description === 'string' ? description.trim() : ''
+    const cleanType = typeof type === 'string' ? type.trim() : ''
+    const cleanDate = typeof date === 'string' ? date.trim() : ''
+    const cleanLocation = typeof location === 'string' ? location.trim() : ''
+    const cleanImageUrl = typeof imageUrl === 'string' ? imageUrl.trim() : ''
 
     if (
       !cleanTitle ||
@@ -332,12 +336,11 @@ app.post('/create-event', verifyAuth, async (req, res) => {
       !cleanType ||
       !cleanDate ||
       !cleanLocation ||
-      !cleanImageUrl ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)
+      !cleanImageUrl
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Please fill in all required fields correctly.',
+        message: 'Please fill in all required fields.',
       })
     }
 
@@ -346,8 +349,7 @@ app.post('/create-event', verifyAuth, async (req, res) => {
       cleanDescription.length > 1500 ||
       cleanType.length > 100 ||
       cleanLocation.length > 150 ||
-      cleanImageUrl.length > 2000 ||
-      cleanOrganizer.length > 100
+      cleanImageUrl.length > 2000
     ) {
       return res.status(400).json({
         success: false,
@@ -355,36 +357,27 @@ app.post('/create-event', verifyAuth, async (req, res) => {
       })
     }
 
-    if (!isValidDate(cleanDate)) {
+    if (!isValidDate(cleanDate) || cleanDate <= getTodayDate()) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid event date.',
+        message: 'Please select a valid future event date.',
       })
     }
 
-    if (cleanDate <= getTodayDate()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please select a future event date.',
-      })
-    }
-
-    try {
-      const parsedUrl = new URL(cleanImageUrl)
-
-      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        throw new Error('Invalid URL')
-      }
-    } catch {
+    if (!isValidImageUrl(cleanImageUrl)) {
       return res.status(400).json({
         success: false,
         message: 'Please provide a valid image URL.',
       })
     }
 
-    const participants = Number(maxParticipants) || 50
+    const participants = Number(maxParticipants ?? 50)
 
-    if (!Number.isInteger(participants) || participants < 1) {
+    if (
+      !Number.isInteger(participants) ||
+      participants < 1 ||
+      participants > 500
+    ) {
       return res.status(400).json({
         success: false,
         message: 'Invalid maximum participants.',
@@ -400,8 +393,12 @@ app.post('/create-event', verifyAuth, async (req, res) => {
       location: cleanLocation,
       image: cleanImageUrl,
       imageUrl: cleanImageUrl,
-      organizer: cleanOrganizer,
-      createdBy: cleanEmail,
+      organizer:
+        typeof organizer === 'string' && organizer.trim()
+          ? organizer.trim()
+          : req.user.name,
+      createdBy: req.user.email,
+      createdById: req.user.id,
       maxParticipants: participants,
       source: 'user',
       joined: [],
@@ -410,7 +407,7 @@ app.post('/create-event', verifyAuth, async (req, res) => {
 
     const result = await eventCollection.insertOne(newEvent)
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Your event has been published successfully!',
       event: {
@@ -421,7 +418,7 @@ app.post('/create-event', verifyAuth, async (req, res) => {
   } catch (error) {
     console.error('Create event error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to create event.',
     })
@@ -435,7 +432,7 @@ app.get('/events', async (req, res) => {
       .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       totalEvents: events.length,
       events: events.map(formatEvent),
@@ -443,7 +440,7 @@ app.get('/events', async (req, res) => {
   } catch (error) {
     console.error('Get all events error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch events.',
     })
@@ -453,11 +450,14 @@ app.get('/events', async (req, res) => {
 app.get('/events/user', verifyAuth, async (req, res) => {
   try {
     const events = await eventCollection
-      .find({ source: 'user' })
+      .find({
+        source: 'user',
+        $or: [{ createdBy: req.user.email }, { createdById: req.user.id }],
+      })
       .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       totalEvents: events.length,
       events: events.map(formatEvent),
@@ -465,7 +465,7 @@ app.get('/events/user', verifyAuth, async (req, res) => {
   } catch (error) {
     console.error('Get user events error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch user events.',
     })
@@ -474,14 +474,12 @@ app.get('/events/user', verifyAuth, async (req, res) => {
 
 app.get('/joined-events', verifyAuth, async (req, res) => {
   try {
-    const cleanEmail = req.user.email.trim().toLowerCase()
-
     const events = await eventCollection
-      .find({ joined: cleanEmail })
+      .find({ joined: req.user.email })
       .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       totalEvents: events.length,
       events: events.map(formatEvent),
@@ -489,7 +487,7 @@ app.get('/joined-events', verifyAuth, async (req, res) => {
   } catch (error) {
     console.error('Get joined events error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch joined events.',
     })
@@ -518,14 +516,14 @@ app.get('/events/:id', async (req, res) => {
       })
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       event: formatEvent(event),
     })
   } catch (error) {
     console.error('Get single event error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to fetch event.',
     })
@@ -577,21 +575,27 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
     const updatedData = {}
 
     if (title !== undefined) {
-      if (typeof title !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid title.',
-        })
+      if (
+        typeof title !== 'string' ||
+        !title.trim() ||
+        title.trim().length > 100
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid title.' })
       }
       updatedData.title = title.trim()
     }
 
     if (description !== undefined) {
-      if (typeof description !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid description.',
-        })
+      if (
+        typeof description !== 'string' ||
+        !description.trim() ||
+        description.trim().length > 1500
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid description.' })
       }
       updatedData.description = description.trim()
     }
@@ -599,11 +603,14 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
     if (category !== undefined || type !== undefined) {
       const cleanType = category ?? type
 
-      if (typeof cleanType !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid event category.',
-        })
+      if (
+        typeof cleanType !== 'string' ||
+        !cleanType.trim() ||
+        cleanType.trim().length > 100
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid event category.' })
       }
 
       updatedData.category = cleanType.trim()
@@ -611,48 +618,48 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
     }
 
     if (date !== undefined) {
-      if (typeof date !== 'string' || !isValidDate(date.trim())) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid event date.',
-        })
+      if (
+        typeof date !== 'string' ||
+        !isValidDate(date.trim()) ||
+        date.trim() <= getTodayDate()
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: 'Please select a valid future event date.',
+          })
       }
-
       updatedData.date = date.trim()
     }
 
     if (location !== undefined) {
-      if (typeof location !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid location.',
-        })
+      if (
+        typeof location !== 'string' ||
+        !location.trim() ||
+        location.trim().length > 150
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid location.' })
       }
-
       updatedData.location = location.trim()
     }
 
     if (image !== undefined || imageUrl !== undefined) {
       const cleanImage = image ?? imageUrl
 
-      if (typeof cleanImage !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid image URL.',
-        })
-      }
-
-      try {
-        const parsedUrl = new URL(cleanImage.trim())
-
-        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-          throw new Error('Invalid URL')
-        }
-      } catch {
-        return res.status(400).json({
-          success: false,
-          message: 'Please provide a valid image URL.',
-        })
+      if (
+        typeof cleanImage !== 'string' ||
+        !isValidImageUrl(cleanImage.trim()) ||
+        cleanImage.trim().length > 2000
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message: 'Please provide a valid image URL.',
+          })
       }
 
       updatedData.image = cleanImage.trim()
@@ -660,48 +667,32 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
     }
 
     if (organizer !== undefined) {
-      if (typeof organizer !== 'string') {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid organizer.',
-        })
+      if (
+        typeof organizer !== 'string' ||
+        !organizer.trim() ||
+        organizer.trim().length > 100
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid organizer.' })
       }
-
       updatedData.organizer = organizer.trim()
     }
 
     if (maxParticipants !== undefined) {
       const participants = Number(maxParticipants)
 
-      if (!Number.isInteger(participants) || participants < 1) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid maxParticipants.',
-        })
+      if (
+        !Number.isInteger(participants) ||
+        participants < 1 ||
+        participants > 500
+      ) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'Invalid maximum participants.' })
       }
 
       updatedData.maxParticipants = participants
-    }
-
-    const limits = {
-      title: 100,
-      description: 1500,
-      category: 100,
-      location: 150,
-      image: 2000,
-      organizer: 100,
-    }
-
-    for (const [field, maxLength] of Object.entries(limits)) {
-      if (
-        updatedData[field] !== undefined &&
-        (!updatedData[field] || updatedData[field].length > maxLength)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: `Invalid ${field}.`,
-        })
-      }
     }
 
     if (!Object.keys(updatedData).length) {
@@ -717,13 +708,13 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
       {
         _id: new ObjectId(id),
         source: 'user',
-        createdBy: req.user.email.toLowerCase(),
+        $or: [{ createdBy: req.user.email }, { createdById: req.user.id }],
       },
       { $set: updatedData },
     )
 
     if (!result.matchedCount) {
-      return res.status(404).json({
+      return res.status(403).json({
         success: false,
         message: 'Event not found or you are not allowed to update it.',
       })
@@ -733,7 +724,7 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
       _id: new ObjectId(id),
     })
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Event updated successfully.',
       event: formatEvent(updatedEvent),
@@ -741,7 +732,7 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
   } catch (error) {
     console.error('Update event error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to update event.',
     })
@@ -752,8 +743,6 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
   try {
     const { id } = req.params
 
-    const email = req.user.email
-
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -761,22 +750,12 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
       })
     }
 
-    if (
-      typeof email !== 'string' ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address.',
-      })
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
+    const email = req.user.email
 
     const result = await eventCollection.updateOne(
       {
         _id: new ObjectId(id),
-        joined: { $ne: cleanEmail },
+        joined: { $ne: email },
         $expr: {
           $lt: [
             { $size: { $ifNull: ['$joined', []] } },
@@ -784,11 +763,7 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
           ],
         },
       },
-      {
-        $addToSet: {
-          joined: cleanEmail,
-        },
-      },
+      { $addToSet: { joined: email } },
     )
 
     if (!result.matchedCount) {
@@ -807,7 +782,7 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
 
       return res.status(409).json({
         success: false,
-        message: joined.includes(cleanEmail)
+        message: joined.includes(email)
           ? 'You have already joined this event.'
           : 'Event is full.',
         joined,
@@ -821,7 +796,7 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
 
     const joined = updatedEvent?.joined || []
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Successfully joined the event.',
       joined,
@@ -831,7 +806,7 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
   } catch (error) {
     console.error('Join event error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to join event.',
     })
@@ -841,6 +816,8 @@ app.patch('/join-event/:id', verifyAuth, async (req, res) => {
 app.delete('/delete-event/:id', verifyAuth, async (req, res) => {
   try {
     const { id } = req.params
+
+    console.log('DELETE REQUEST RECEIVED:', id)
 
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -860,7 +837,22 @@ app.delete('/delete-event/:id', verifyAuth, async (req, res) => {
       })
     }
 
+    console.log('DELETE DEBUG:', {
+      eventId: id,
+      eventCreatedBy: event.createdBy,
+      eventCreatedById: event.createdById,
+      eventSource: event.source,
+      eventDefaultId: event.defaultId,
+      loggedInEmail: req.user.email,
+      loggedInId: req.user.id,
+      emailMatches:
+        normalizeEmail(event.createdBy) === normalizeEmail(req.user.email),
+      idMatches: String(event.createdById || '') === String(req.user.id || ''),
+    })
+
     if (!isEventOwner(event, req.user)) {
+      console.log('DELETE OWNERSHIP FAILED:', id)
+
       return res.status(403).json({
         success: false,
         message: 'You are not allowed to delete this event.',
@@ -870,24 +862,27 @@ app.delete('/delete-event/:id', verifyAuth, async (req, res) => {
     const result = await eventCollection.deleteOne({
       _id: new ObjectId(id),
       source: 'user',
-      createdBy: req.user.email.toLowerCase(),
+      $or: [{ createdBy: req.user.email }, { createdById: req.user.id }],
     })
 
-    if (!result.deletedCount) {
+    if (result.deletedCount !== 1) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found.',
+        message: 'Event could not be deleted.',
       })
     }
 
-    res.status(200).json({
+    console.log('EVENT DELETED SUCCESSFULLY:', id)
+
+    return res.status(200).json({
       success: true,
       message: 'Event deleted successfully.',
+      deletedId: id,
     })
   } catch (error) {
     console.error('Delete event error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Failed to delete event.',
     })
@@ -909,24 +904,19 @@ async function startServer() {
         source: { $exists: false },
       },
       {
-        $set: {
-          source: 'user',
-        },
+        $set: { source: 'user' },
       },
     )
 
-    await eventCollection.updateMany(
+    await eventCollection.updateMany({ createdAt: { $exists: false } }, [
       {
-        createdAt: { $exists: false },
-      },
-      [
-        {
-          $set: {
-            createdAt: { $toDate: { $toLong: '$_id' } },
+        $set: {
+          createdAt: {
+            $toDate: { $toLong: '$_id' },
           },
         },
-      ],
-    )
+      },
+    ])
 
     console.log('Existing events timestamps updated successfully')
 
