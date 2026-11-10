@@ -14,8 +14,7 @@ const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL
 const MONGODB_URL = process.env.MONGODB_URL
 
 if (!MONGODB_URL || !BETTER_AUTH_URL) {
-  console.error('MONGODB_URL and BETTER_AUTH_URL are required.')
-  process.exit(1)
+  throw new Error('MONGODB_URL and BETTER_AUTH_URL are required.')
 }
 
 app.use(
@@ -28,9 +27,11 @@ app.use(
 app.use(express.json({ limit: '1mb' }))
 
 const client = new MongoClient(MONGODB_URL)
+
 const JWKS = createRemoteJWKSet(new URL('/api/auth/jwks', BETTER_AUTH_URL))
 
 let eventCollection
+let databasePromise
 
 const defaultEvents = [
   {
@@ -200,6 +201,93 @@ function formatEvent(event) {
   }
 }
 
+function isEventOwner(event, user) {
+  if (!event || !user) return false
+
+  if (event.defaultId || event.source === 'default') {
+    return false
+  }
+
+  const eventEmail = normalizeEmail(event.createdBy)
+  const userEmail = normalizeEmail(user.email)
+
+  const emailMatches = Boolean(eventEmail) && eventEmail === userEmail
+
+  const idMatches =
+    Boolean(event.createdById) &&
+    Boolean(user.id) &&
+    String(event.createdById) === String(user.id)
+
+  return event.source === 'user' && (emailMatches || idMatches)
+}
+
+async function seedDefaultEvents() {
+  for (const event of defaultEvents) {
+    const { defaultId, ...eventData } = event
+
+    await eventCollection.updateOne(
+      { defaultId },
+      {
+        $setOnInsert: {
+          ...eventData,
+          category: eventData.type,
+          image: eventData.imageUrl,
+          defaultId,
+          source: 'default',
+          joined: [],
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true },
+    )
+  }
+
+  console.log('Default events seeded successfully')
+}
+
+async function connectDatabase() {
+  if (!databasePromise) {
+    databasePromise = (async () => {
+      await client.connect()
+
+      const database = client.db('Social_Development1')
+      eventCollection = database.collection('events')
+
+      await seedDefaultEvents()
+
+      await eventCollection.updateMany(
+        {
+          defaultId: { $exists: false },
+          source: { $exists: false },
+        },
+        {
+          $set: { source: 'user' },
+        },
+      )
+
+      await eventCollection.updateMany({ createdAt: { $exists: false } }, [
+        {
+          $set: {
+            createdAt: {
+              $toDate: { $toLong: '$_id' },
+            },
+          },
+        },
+      ])
+
+      console.log('MongoDB connected successfully')
+    })()
+  }
+
+  try {
+    await databasePromise
+  } catch (error) {
+    databasePromise = null
+    console.error('MongoDB connection failed:', error)
+    throw error
+  }
+}
+
 async function verifyAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization
@@ -258,55 +346,25 @@ async function verifyAuth(req, res, next) {
   }
 }
 
-function isEventOwner(event, user) {
-  if (!event || !user) return false
-
-  if (event.defaultId || event.source === 'default') {
-    return false
-  }
-
-  const eventEmail = normalizeEmail(event.createdBy)
-  const userEmail = normalizeEmail(user.email)
-
-  const emailMatches = Boolean(eventEmail) && eventEmail === userEmail
-
-  const idMatches =
-    Boolean(event.createdById) &&
-    Boolean(user.id) &&
-    String(event.createdById) === String(user.id)
-
-  return event.source === 'user' && (emailMatches || idMatches)
-}
-
-async function seedDefaultEvents() {
-  for (const event of defaultEvents) {
-    const { defaultId, ...eventData } = event
-
-    await eventCollection.updateOne(
-      { defaultId },
-      {
-        $setOnInsert: {
-          ...eventData,
-          category: eventData.type,
-          image: eventData.imageUrl,
-          defaultId,
-          source: 'default',
-          joined: [],
-          createdAt: new Date(),
-        },
-      },
-      { upsert: true },
-    )
-  }
-
-  console.log('Default events seeded successfully')
-}
-
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Kindred Events API is running',
   })
+})
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDatabase()
+    next()
+  } catch (error) {
+    console.error('Database initialization failed:', error)
+
+    return res.status(500).json({
+      success: false,
+      message: 'Database connection failed.',
+    })
+  }
 })
 
 app.post('/create-event', verifyAuth, async (req, res) => {
@@ -623,12 +681,10 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
         !isValidDate(date.trim()) ||
         date.trim() <= getTodayDate()
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: 'Please select a valid future event date.',
-          })
+        return res.status(400).json({
+          success: false,
+          message: 'Please select a valid future event date.',
+        })
       }
       updatedData.date = date.trim()
     }
@@ -654,12 +710,10 @@ app.put('/update-event/:id', verifyAuth, async (req, res) => {
         !isValidImageUrl(cleanImage.trim()) ||
         cleanImage.trim().length > 2000
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            message: 'Please provide a valid image URL.',
-          })
+        return res.status(400).json({
+          success: false,
+          message: 'Please provide a valid image URL.',
+        })
       }
 
       updatedData.image = cleanImage.trim()
@@ -889,45 +943,10 @@ app.delete('/delete-event/:id', verifyAuth, async (req, res) => {
   }
 })
 
-async function startServer() {
-  try {
-    await client.connect()
-
-    const database = client.db('Social_Development1')
-    eventCollection = database.collection('events')
-
-    await seedDefaultEvents()
-
-    await eventCollection.updateMany(
-      {
-        defaultId: { $exists: false },
-        source: { $exists: false },
-      },
-      {
-        $set: { source: 'user' },
-      },
-    )
-
-    await eventCollection.updateMany({ createdAt: { $exists: false } }, [
-      {
-        $set: {
-          createdAt: {
-            $toDate: { $toLong: '$_id' },
-          },
-        },
-      },
-    ])
-
-    console.log('Existing events timestamps updated successfully')
-
-    app.listen(PORT, () => {
-      console.log(`Server running at http://localhost:${PORT}`)
-    })
-  } catch (error) {
-    console.error('MongoDB connection failed:', error)
-    process.exit(1)
-  }
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running at http://localhost:${PORT}`)
+  })
 }
 
-startServer()
 export default app
