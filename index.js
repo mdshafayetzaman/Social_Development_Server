@@ -2,21 +2,39 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { MongoClient, ObjectId } from 'mongodb'
+import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 5002
 
-app.use(cors())
+app.use(
+  cors({
+    origin: [
+      process.env.CLIENT_URL || 'http://localhost:3000',
+      'http://127.0.0.1:3000',
+    ],
+    credentials: true,
+  }),
+)
+
 app.use(express.json())
 
-if (!process.env.MONGODB_URL) {
-  console.error('MONGODB_URL is missing from .env file')
+if (
+  !process.env.MONGODB_URL ||
+  !process.env.BETTER_AUTH_SECRET ||
+  !process.env.BETTER_AUTH_URL
+) {
+  console.error('Required environment variables are missing from .env')
   process.exit(1)
 }
 
 const client = new MongoClient(process.env.MONGODB_URL)
+
+const JWKS = createRemoteJWKSet(
+  new URL(`${process.env.BETTER_AUTH_URL}/api/auth/jwks`),
+)
 
 let eventCollection
 
@@ -135,6 +153,66 @@ const defaultEvents = [
   },
 ]
 
+async function verifyAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('JWT missing:', req.method, req.originalUrl)
+
+      return res.status(401).json({
+        success: false,
+        message: 'Please login to continue.',
+      })
+    }
+
+    const token = authHeader.slice(7)
+
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: process.env.BETTER_AUTH_URL,
+      audience: process.env.BETTER_AUTH_URL,
+    })
+
+    if (!payload.sub || !payload.email) {
+      console.log('JWT payload invalid:', req.originalUrl)
+
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid JWT payload.',
+      })
+    }
+
+    req.user = {
+      id: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    }
+
+    console.log('JWT verified successfully:', {
+      method: req.method,
+      route: req.originalUrl,
+      email: req.user.email,
+    })
+
+    next()
+  } catch (error) {
+    console.error('JWT verification failed:', error.message)
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid or expired JWT token.',
+    })
+  }
+}
+
+function isEventOwner(event, user) {
+  return (
+    event.source === 'user' &&
+    typeof event.createdBy === 'string' &&
+    event.createdBy.toLowerCase() === user.email.toLowerCase()
+  )
+}
+
 function isValidDate(dateString) {
   if (typeof dateString !== 'string') return false
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false
@@ -170,6 +248,7 @@ function formatEvent(event) {
     maxParticipants: event.maxParticipants || 50,
     joined: event.joined || [],
     source: event.source || (event.defaultId ? 'default' : 'user'),
+    createdAt: event.createdAt || event._id.getTimestamp(),
   }
 }
 
@@ -204,7 +283,7 @@ app.get('/', (req, res) => {
   })
 })
 
-app.post('/create-event', async (req, res) => {
+app.post('/create-event', verifyAuth, async (req, res) => {
   try {
     const {
       title,
@@ -213,10 +292,11 @@ app.post('/create-event', async (req, res) => {
       date,
       location,
       imageUrl,
-      createdBy,
       organizer,
       maxParticipants,
     } = req.body
+
+    const createdBy = req.user.email
 
     if (
       typeof title !== 'string' ||
@@ -352,7 +432,7 @@ app.get('/events', async (req, res) => {
   try {
     const events = await eventCollection
       .find({})
-      .sort({ date: 1, createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
     res.status(200).json({
@@ -370,11 +450,11 @@ app.get('/events', async (req, res) => {
   }
 })
 
-app.get('/events/user', async (req, res) => {
+app.get('/events/user', verifyAuth, async (req, res) => {
   try {
     const events = await eventCollection
       .find({ source: 'user' })
-      .sort({ date: 1, createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
     res.status(200).json({
@@ -392,25 +472,13 @@ app.get('/events/user', async (req, res) => {
   }
 })
 
-app.get('/joined-events', async (req, res) => {
+app.get('/joined-events', verifyAuth, async (req, res) => {
   try {
-    const email = req.query.email
-
-    if (
-      typeof email !== 'string' ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address.',
-      })
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
+    const cleanEmail = req.user.email.trim().toLowerCase()
 
     const events = await eventCollection
       .find({ joined: cleanEmail })
-      .sort({ date: 1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray()
 
     res.status(200).json({
@@ -464,7 +532,7 @@ app.get('/events/:id', async (req, res) => {
   }
 })
 
-app.put('/update-event/:id', async (req, res) => {
+app.put('/update-event/:id', verifyAuth, async (req, res) => {
   try {
     const { id } = req.params
 
@@ -472,6 +540,24 @@ app.put('/update-event/:id', async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Invalid event ID.',
+      })
+    }
+
+    const existingEvent = await eventCollection.findOne({
+      _id: new ObjectId(id),
+    })
+
+    if (!existingEvent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found.',
+      })
+    }
+
+    if (!isEventOwner(existingEvent, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not allowed to update this event.',
       })
     }
 
@@ -485,7 +571,6 @@ app.put('/update-event/:id', async (req, res) => {
       image,
       imageUrl,
       organizer,
-      createdBy,
       maxParticipants,
     } = req.body
 
@@ -629,14 +714,18 @@ app.put('/update-event/:id', async (req, res) => {
     updatedData.updatedAt = new Date()
 
     const result = await eventCollection.updateOne(
-      { _id: new ObjectId(id) },
+      {
+        _id: new ObjectId(id),
+        source: 'user',
+        createdBy: req.user.email.toLowerCase(),
+      },
       { $set: updatedData },
     )
 
     if (!result.matchedCount) {
       return res.status(404).json({
         success: false,
-        message: 'Event not found.',
+        message: 'Event not found or you are not allowed to update it.',
       })
     }
 
@@ -659,10 +748,11 @@ app.put('/update-event/:id', async (req, res) => {
   }
 })
 
-app.patch('/join-event/:id', async (req, res) => {
+app.patch('/join-event/:id', verifyAuth, async (req, res) => {
   try {
     const { id } = req.params
-    const { email } = req.body
+
+    const email = req.user.email
 
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -748,7 +838,7 @@ app.patch('/join-event/:id', async (req, res) => {
   }
 })
 
-app.delete('/delete-event/:id', async (req, res) => {
+app.delete('/delete-event/:id', verifyAuth, async (req, res) => {
   try {
     const { id } = req.params
 
@@ -759,8 +849,28 @@ app.delete('/delete-event/:id', async (req, res) => {
       })
     }
 
+    const event = await eventCollection.findOne({
+      _id: new ObjectId(id),
+    })
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: 'Event not found.',
+      })
+    }
+
+    if (!isEventOwner(event, req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not allowed to delete this event.',
+      })
+    }
+
     const result = await eventCollection.deleteOne({
       _id: new ObjectId(id),
+      source: 'user',
+      createdBy: req.user.email.toLowerCase(),
     })
 
     if (!result.deletedCount) {
@@ -805,7 +915,20 @@ async function startServer() {
       },
     )
 
-    console.log('Existing user events updated successfully')
+    await eventCollection.updateMany(
+      {
+        createdAt: { $exists: false },
+      },
+      [
+        {
+          $set: {
+            createdAt: { $toDate: { $toLong: '$_id' } },
+          },
+        },
+      ],
+    )
+
+    console.log('Existing events timestamps updated successfully')
 
     app.listen(PORT, () => {
       console.log(`Server running at http://localhost:${PORT}`)
